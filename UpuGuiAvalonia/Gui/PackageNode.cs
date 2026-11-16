@@ -14,18 +14,27 @@ public sealed class PackageNode(string name, string assetPath, bool isDirectory,
     public byte[]? AssetContent { get; } = assetContent;
     public byte[]? MetaContent { get; } = metaContent;
     public ObservableCollection<PackageNode> Children { get; } = [];
+    public event Action? CheckedChanged;
+    private bool _isChecked = true;
 
     public bool IsChecked
     {
-        get;
-        set
+        get => _isChecked;
+        set => SetChecked(value);
+    }
+
+    public void SetChecked(bool value)
+    {
+        if (_isChecked != value)
         {
-            if (field == value) return;
-            field = value;
-            OnPropertyChanged();
-            foreach (PackageNode child in Children) child.IsChecked = value;
+            _isChecked = value;
+            OnPropertyChanged(nameof(IsChecked));
+            CheckedChanged?.Invoke();
         }
-    } = true;
+
+        foreach (PackageNode child in Children)
+            child.SetChecked(value);
+    }
 
     public bool IsExpanded
     {

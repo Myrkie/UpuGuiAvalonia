@@ -8,7 +8,10 @@
     Width="666"
     Height="495"
     MinWidth="522"
-    MinHeight="294">
+    MinHeight="294"
+    DragDrop.AllowDrop="True"
+    DragDrop.DragOver="OnDragOver"
+    DragDrop.Drop="OnDrop">
 
     <Grid Margin="14"
           RowDefinitions="*,38,32,22"

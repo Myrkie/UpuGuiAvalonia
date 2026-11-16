@@ -84,33 +84,39 @@ internal static class PackageOptions
             Directory.CreateDirectory(unpackedDirectory);
             int files = 0;
             int metadata = 0;
-
             foreach (var asset in extraction.Assets)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-
-                if (asset.AssetContent is null)
-                {
-                    Logger.Warning("Skipping asset with no content: {AssetPath}", asset.AssetPath);
-                    continue;
-                }
-
                 string destination = ResolveOutputPath(unpackedDirectory, asset.AssetPath);
-                string? parent = Path.GetDirectoryName(destination);
-                if (parent is not null) Directory.CreateDirectory(parent);
-                await File.WriteAllBytesAsync(destination, asset.AssetContent, cancellationToken);
+                if (asset.IsFolder)
+                {
+                    Directory.CreateDirectory(destination);
+                }
+                else
+                {
+                    if (asset.AssetContent is null)
+                    {
+                        throw new InvalidDataException($"Asset has no content: {asset.AssetPath}");
+                    }
 
-                files++;
+                    string? parent = Path.GetDirectoryName(destination);
+                    if (parent is not null) Directory.CreateDirectory(parent);
+                    await File.WriteAllBytesAsync(destination, asset.AssetContent, cancellationToken);
+                    files++;
+                }
 
                 if (extractMetadata && asset.MetaContent is { } metaContent)
                 {
-                    await File.WriteAllBytesAsync(destination + ".meta", metaContent, cancellationToken);
+                    string metaDestination = destination + ".meta";
+                    string? metaParent = Path.GetDirectoryName(metaDestination);
+                    if (metaParent is not null) Directory.CreateDirectory(metaParent);
+                    await File.WriteAllBytesAsync(metaDestination, metaContent, cancellationToken);
                     metadata++;
                 }
 
-                Logger.Information("Extracted Asset: {AssetPath} | GUID: {Guid} | MD4: {Md4Digest}", asset.AssetPath, asset.Guid, asset.Md4Digest ?? "None");
+                Logger.Information("Extracted {AssetType}: {AssetPath} | GUID: {Guid} | MD4: {Md4Digest}", asset.IsFolder ? "Folder" : "Asset", asset.AssetPath, asset.Guid, asset.Md4Digest ?? "None");
             }
-            
+
             bool iconExtracted = false;
             if (extraction.PackageIcon is { Length: > 0 } icon)
             {

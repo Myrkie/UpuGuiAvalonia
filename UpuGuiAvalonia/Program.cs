@@ -22,25 +22,26 @@ internal static partial class Program
     private static partial void FreeConsole();
 
     [STAThread]
-    private static async Task<int> Main(string[] args)
+    private static int Main(string[] args)
     {
-        if (args.Length == 0)
+        if (args.Length != 0) return RunCli(args);
+        if (OperatingSystem.IsWindows())
+            FreeConsole();
+
+        ConfigureGuiLogging();
+
+        try
         {
-            if (OperatingSystem.IsWindows())
-                FreeConsole();
-
-            ConfigureGuiLogging(); 
-
-            try
-            {
-                return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
-            }
-            finally
-            {
-                await Log.CloseAndFlushAsync();
-            }
+            return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
         }
+        finally
+        {
+            Log.CloseAndFlush();
+        }
+    }
 
+    private static int RunCli(string[] args)
+    {
         ConfigureCliLogging();
 
         try
@@ -49,8 +50,7 @@ internal static partial class Program
             Console.InputEncoding = Encoding.UTF8;
 
             var root = PackageOptions.CreateCommand();
-
-            return await root.Parse(args).InvokeAsync();
+            return root.Parse(args).Invoke();
         }
         catch (OperationCanceledException ex)
         {
@@ -64,7 +64,7 @@ internal static partial class Program
         }
         finally
         {
-            await Log.CloseAndFlushAsync();
+            Log.CloseAndFlush();
         }
     }
 

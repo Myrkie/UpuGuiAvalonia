@@ -12,7 +12,7 @@
 
         <ApplicationIcon>Assets\Icons\70px\icons8-archive-folder-70.ico</ApplicationIcon>
 
-        <OutputType>Exe</OutputType>
+        <OutputType>WinExe</OutputType>
         <TargetFramework>net10.0</TargetFramework>
 
         <ImplicitUsings>enable</ImplicitUsings>

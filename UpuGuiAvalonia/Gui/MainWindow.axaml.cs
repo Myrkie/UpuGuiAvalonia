@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Serilog;
@@ -15,17 +16,27 @@ namespace UpuGuiAvalonia.Gui;
 public sealed partial class MainWindow : Window, INotifyPropertyChanged
 {
     private static readonly ILogger Logger = Log.ForContext<MainWindow>();
-    
+
     private string? _loadedPackage;
+    private bool _selectAll;
+    private bool _updatingSelectAll;
     private IReadOnlyList<ExtractedUnityPackageAsset> _assets = [];
+    public ObservableCollection<PackageNode> RootNodes { get; } = [];
 
     public MainWindow()
     {
         InitializeComponent();
+
         DataContext = this;
         SelectAll = true;
+
         Utilities.UpdateShellButtonText(BtnRegisterUnregister);
+
         AvaloniaLogSink.MessageLogged += OnMessageLogged;
+
+        DragDrop.AddDragOverHandler(this, OnDragOver);
+        DragDrop.AddDropHandler(this, OnDrop);
+
         Closed += (_, _) =>
         {
             AvaloniaLogSink.MessageLogged -= OnMessageLogged;
@@ -35,7 +46,39 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         };
     }
 
-    public ObservableCollection<PackageNode> RootNodes { get; } = new();
+    private void OnDragOver(object? sender, DragEventArgs e)
+    {
+        if (IsBusy || !e.DataTransfer.Contains(DataFormat.File))
+        {
+            e.DragEffects = DragDropEffects.None;
+            return;
+        }
+
+        var files = e.DataTransfer.TryGetFiles();
+        bool hasValidFile = files?.Any(file =>
+        {
+            string path = file.Path.LocalPath;
+            return !string.IsNullOrWhiteSpace(path) && string.Equals(Path.GetExtension(path), ".unitypackage",
+                StringComparison.OrdinalIgnoreCase);
+        }) == true;
+        e.DragEffects = hasValidFile ? DragDropEffects.Copy : DragDropEffects.None;
+    }
+
+    private async void OnDrop(object? sender, DragEventArgs e)
+    {
+        try
+        {
+            if (IsBusy || e.DataTransfer.TryGetFiles() is not { } files) return;
+            string? packagePath = files.Select(file => file.Path.LocalPath).FirstOrDefault(path =>
+                !string.IsNullOrWhiteSpace(path) && string.Equals(Path.GetExtension(path), ".unitypackage", StringComparison.OrdinalIgnoreCase));
+            if (packagePath is null) return;
+            await OpenPackageAsync(packagePath);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error(ex, "Failed to open dropped Unity package");
+        }
+    }
 
     public string PackageHeader
     {
@@ -51,12 +94,42 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
     public bool SelectAll
     {
-        get;
+        get => _selectAll;
         set
         {
-            if (!SetField(ref field, value)) return;
-            foreach (PackageNode node in RootNodes) node.IsChecked = value;
+            if (!SetField(ref _selectAll, value)) return;
+            if (_updatingSelectAll) return;
+
+            _updatingSelectAll = true;
+            try
+            {
+                foreach (PackageNode node in RootNodes)
+                    node.SetChecked(value);
+            }
+            finally
+            {
+                _updatingSelectAll = false;
+            }
         }
+    }
+
+    private void SubscribeToNode(PackageNode node)
+    {
+        node.CheckedChanged += OnNodeCheckedChanged;
+
+        foreach (PackageNode child in node.Children)
+            SubscribeToNode(child);
+    }
+
+    private void OnNodeCheckedChanged()
+    {
+        if (_updatingSelectAll) return;
+
+        bool allChecked = EnumerateNodes(RootNodes).All(node => node.IsChecked);
+
+        if (_selectAll == allChecked) return;
+
+        SetField(ref _selectAll, allChecked, nameof(SelectAll));
     }
 
     public bool ExportMeta
@@ -142,10 +215,15 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
                 await UnityPackageExtractor.ExtractAsync(fullPath, CancellationToken.None);
             _assets = extraction.Assets;
             PackageIcon = extraction.PackageIcon;
-            foreach (PackageNode node in BuildTree(_assets)) RootNodes.Add(node);
+            foreach (PackageNode node in BuildTree(_assets))
+            {
+                SubscribeToNode(node);
+                RootNodes.Add(node);
+            }
             HasPackage = true;
             SelectAll = true;
-            Logger.Information("Package loaded into memory. Assets: {AssetCount}; Icon: {HasIcon}", _assets.Count, PackageIcon is { Length: > 0 });
+            Logger.Information("Package loaded into memory. Assets: {AssetCount}; Icon: {HasIcon}",
+                _assets.Count(x => !x.IsFolder), PackageIcon is { Length: > 0 });
             Logger.Information("Select the folders and files to export, then choose Unpack now");
         }
         catch (Exception ex)
@@ -178,8 +256,8 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
             PackageNode parent = root;
             string currentPath = "Assets";
-
-            for (int i = 1; i < segments.Length - 1; i++)
+            int directoryEnd = asset.IsFolder ? segments.Length : segments.Length - 1;
+            for (int i = 1; i < directoryEnd; i++)
             {
                 currentPath += "/" + segments[i];
                 if (!directoryLookup.TryGetValue(currentPath, out PackageNode? directory))
@@ -190,6 +268,22 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
                 }
 
                 parent = directory;
+            }
+
+            if (asset.IsFolder)
+            {
+                if (segments.Length > 1)
+                {
+                    string folderPath = string.Join('/', segments);
+                    if (!directoryLookup.ContainsKey(folderPath))
+                    {
+                        var folder = new PackageNode(segments[^1], folderPath, true, IconCatalog.Folder, metaContent: asset.MetaContent);
+                        directoryLookup.Add(folderPath, folder);
+                        parent.Children.Add(folder);
+                    }
+                }
+
+                continue;
             }
 
             string fileName = segments[^1];
@@ -332,7 +426,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
     private void OnRegisterUnregisterClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        Utils.Utilities.RegistryContext(BtnRegisterUnregister);
+        Utilities.RegistryContext(BtnRegisterUnregister);
     }
 
     private void OnAboutClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
