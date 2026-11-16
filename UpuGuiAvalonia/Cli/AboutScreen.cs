@@ -14,7 +14,10 @@ namespace UpuGuiAvalonia.Cli
         [
             Constants.AppName,
             "Decompress and Extract unitypackages",
-            $"version {Version}",
+            "",
+            "Created by Myrkur",
+            "",
+            $"Version {Version}",
             "",
             Constants.AppUrl
         ];

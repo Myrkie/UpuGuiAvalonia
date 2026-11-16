@@ -10,7 +10,7 @@ namespace UpuGuiAvalonia.Utils
         private const string ShellRegistryPath = @"Software\Classes\*\shell\UpuGuiAvalonia";
         private const string ShellRegistryMetadataPath = @"Software\Classes\*\shell\UpuGuiAvaloniaMetadata";
 
-        public static void RegistryContext(Button btnRegisterUnregister)
+        public static void RegistryContext(bool? register = null, Button? btnRegisterUnregister = null)
         {
             if (!OperatingSystem.IsWindows())
             {
@@ -20,13 +20,8 @@ namespace UpuGuiAvalonia.Utils
 
             try
             {
-                if (IsShellHandlerRegistered())
-                {
-                    Registry.CurrentUser.DeleteSubKeyTree(ShellRegistryPath, throwOnMissingSubKey: false);
-                    Registry.CurrentUser.DeleteSubKeyTree(ShellRegistryMetadataPath, throwOnMissingSubKey: false);
-                    Logger.Information("Explorer context menu handlers unregistered");
-                }
-                else
+                bool shouldRegister = register ?? !IsShellHandlerRegistered();
+                if (shouldRegister)
                 {
                     string? executable = Environment.ProcessPath;
                     if (string.IsNullOrWhiteSpace(executable) ||
@@ -49,15 +44,22 @@ namespace UpuGuiAvalonia.Utils
                         key.SetValue(string.Empty, "Unpack here (with metadata)");
                         key.SetValue("Icon", executable);
                         using RegistryKey command = key.CreateSubKey("command");
-                        command.SetValue(
-                            string.Empty,
-                            $"\"{executable}\" --extract \"%1\" --extract-metadata");
+                        command.SetValue(string.Empty, $"\"{executable}\" --extract \"%1\" --extract-metadata");
                     }
 
                     Logger.Information("Explorer context menu handlers registered");
                 }
+                else
+                {
+                    Registry.CurrentUser.DeleteSubKeyTree(ShellRegistryPath, throwOnMissingSubKey: false);
+                    Registry.CurrentUser.DeleteSubKeyTree(ShellRegistryMetadataPath, throwOnMissingSubKey: false);
+                    Logger.Information("Explorer context menu handlers unregistered");
+                }
 
-                UpdateShellButtonText(btnRegisterUnregister);
+                if (btnRegisterUnregister != null)
+                {
+                    UpdateShellButtonText(btnRegisterUnregister);
+                }
             }
             catch (Exception ex)
             {

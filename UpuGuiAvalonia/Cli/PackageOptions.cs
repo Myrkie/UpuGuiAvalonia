@@ -1,6 +1,7 @@
 ﻿using System.CommandLine;
 using Serilog;
 using UpuGuiAvalonia.Services;
+using UpuGuiAvalonia.Utils;
 
 namespace UpuGuiAvalonia.Cli;
 
@@ -18,14 +19,20 @@ internal static class PackageOptions
         };
         var extractMetadataOption = new Option<bool>("--extract-metadata") { Description = "Extract Unity .meta files" };
         
+        var registerContextOption = new Option<bool>("--register") { Description = "Register context menu handler." };
+        var unregisterContextOption = new Option<bool>("--unregister") { Description = "Unregister context menu handler." };
+        
         var aboutOption = new Option<bool>("--about")
         {
             Description = "Show information about AIDungeon Downloader",
             DefaultValueFactory = _ => false
         };
         
+        
         root.Options.Add(extractOption);
         root.Options.Add(extractMetadataOption);
+        root.Options.Add(registerContextOption);
+        root.Options.Add(unregisterContextOption);
         root.Options.Add(aboutOption);
         root.Arguments.Add(outputDirectoryArgument);
         root.SetAction(async (parseResult, cancellationToken) =>
@@ -33,12 +40,28 @@ internal static class PackageOptions
             string? packagePath = parseResult.GetValue(extractOption);
             string? outputDirectory = parseResult.GetValue(outputDirectoryArgument);
             bool extractMetadata = parseResult.GetValue(extractMetadataOption);
+            bool aboutOptions = parseResult.GetValue(aboutOption);
+            bool registerOptions = parseResult.GetValue(registerContextOption);
+            bool unregisterOptions = parseResult.GetValue(unregisterContextOption);
             
-            if (parseResult.GetValue(aboutOption))
+            if (aboutOptions)
             {
                 await AboutScreen.ShowAsync();
                 return 0;
             }
+            
+            if (registerOptions)
+            {
+                Utilities.RegistryContext(true);
+                return 0;
+            }
+
+            if (unregisterOptions)
+            {
+                Utilities.RegistryContext(false);
+                return 0;
+            }
+            
             
             if (!string.IsNullOrWhiteSpace(packagePath))
             {

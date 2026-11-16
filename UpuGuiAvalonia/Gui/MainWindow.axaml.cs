@@ -426,7 +426,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
     private void OnRegisterUnregisterClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        Utilities.RegistryContext(BtnRegisterUnregister);
+        Utilities.RegistryContext(btnRegisterUnregister: BtnRegisterUnregister);
     }
 
     private void OnAboutClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
