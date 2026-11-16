@@ -16,39 +16,41 @@ internal static partial class Program
     private static ILogger Logger => Log.ForContext(typeof(Program));
     private static readonly string LogPath = Path.Combine(AppContext.BaseDirectory, Constants.ConfigRoot, "Logs", $"log-{DateTime.Now:M-d-yyyy-HH-mm}.txt");
     private const string OutputTemplate = "[{Timestamp:HH:mm:ss} {Level:u3}] [{SourceContext}] {Message:lj}{NewLine}{Exception}";
+    private const uint AttachParentProcess = 0xFFFFFFFF;
 
     [LibraryImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool AttachConsole(uint dwProcessId);
-    private const uint AttachParentProcess = 0xFFFFFFFF;
 
-    private static bool TryAttachToParentConsole()
-    {
-        return OperatingSystem.IsWindows() &&
-               AttachConsole(AttachParentProcess);
-    }
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool AllocConsole();
 
     [STAThread]
     private static int Main(string[] args)
     {
-        bool isCli = args.Length != 0;
-        bool hasConsole = isCli || TryAttachToParentConsole();
+        bool isCli = args.Length > 0;
+        bool hasConsole;
+        if (OperatingSystem.IsWindows())
+        {
+            hasConsole = AttachConsole(AttachParentProcess);
 
-        ConfigureLogging(
-            logToConsole: hasConsole,
-            logToGui: !isCli
-        );
+            if (isCli && !hasConsole)
+            {
+                hasConsole = AllocConsole();
+            }
+        }
+        else
+        {
+            hasConsole = !Console.IsOutputRedirected || isCli;
+        }
 
+        ConfigureLogging(logToConsole: hasConsole, logToGui: !isCli);
         try
         {
-            if (isCli)
-                return RunCli(args);
-
-            if (OperatingSystem.IsLinux())
-                Utils.Utilities.ConfigureNativeLibraries();
-
-            return BuildAvaloniaApp()
-                .StartWithClassicDesktopLifetime(args);
+            if (isCli) return RunCli(args);
+            if (OperatingSystem.IsLinux()) Utils.Utilities.ConfigureNativeLibraries();
+            return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
         }
         catch (OperationCanceledException ex)
         {
