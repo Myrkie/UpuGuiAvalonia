@@ -33,9 +33,7 @@ New-Item -ItemType Directory -Force -Path $PublishDir | Out-Null
 
 $PublishDir = (Resolve-Path $PublishDir).Path
 
-Set-Location $ProjectDir
-
-dotnet publish "UpuGuiAvalonia.csproj" `
+dotnet publish (Join-Path $ProjectDir "UpuGuiAvalonia.csproj") `
     -c $Config `
     -r win-x64 `
     -o $PublishDir

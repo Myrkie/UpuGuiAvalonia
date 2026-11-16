@@ -33,6 +33,7 @@
         <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
         <PackageReference Include="Serilog.Sinks.File" Version="8.0.0-nblumhardt-02322" />
         <PackageReference Include="System.CommandLine" Version="3.0.0" />
+        <PackageReference Include="PublishAotCompressed" Version="1.0.5" />
 
         <PackageReference Include="Avalonia" Version="12.1.6" />
         <PackageReference Include="Avalonia.Desktop" Version="12.1.6" />
