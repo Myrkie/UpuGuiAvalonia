@@ -226,23 +226,30 @@ public static class UnityPackageExtractor
         }
     }
 
+
     private static string ValidateAssetPath(string assetPath)
     {
         string normalized = assetPath.Replace('\\', '/');
-        if (normalized.StartsWith('/') || Path.IsPathRooted(normalized) || normalized.Contains(':'))
+
+        if (normalized.StartsWith('/') ||
+            Path.IsPathRooted(normalized) ||
+            normalized.Contains(':'))
         {
             throw new InvalidDataException($"Invalid asset path: {assetPath}");
         }
 
         string[] segments = normalized.Split('/');
-        if (segments.Length == 0 || !string.Equals(segments[0], "Assets", StringComparison.OrdinalIgnoreCase) ||
-            segments.Any(x => x is "" or "." or ".."))
+
+        if (segments.Length < 2 || !(string.Equals(segments[0], "Assets", StringComparison.OrdinalIgnoreCase) 
+                                || string.Equals(segments[0], "Packages", StringComparison.OrdinalIgnoreCase)) 
+                                || segments.Any(x => x is "" or "." or ".."))
         {
             throw new InvalidDataException($"Invalid Unity asset path: {assetPath}");
         }
 
         return string.Join('/', segments);
     }
+
 
     private sealed class PackageEntry(string guid)
     {

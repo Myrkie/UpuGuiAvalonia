@@ -33,7 +33,9 @@ public sealed class PackageNode(string name, string assetPath, bool isDirectory,
         }
 
         foreach (PackageNode child in Children)
+        {
             child.SetChecked(value);
+        }
     }
 
     public bool IsExpanded
@@ -48,5 +50,8 @@ public sealed class PackageNode(string name, string assetPath, bool isDirectory,
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    private void OnPropertyChanged([CallerMemberName] string? propertyName = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
 }

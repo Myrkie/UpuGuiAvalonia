@@ -24,7 +24,7 @@ internal static class PackageOptions
         
         var aboutOption = new Option<bool>("--about")
         {
-            Description = "Show information about AIDungeon Downloader",
+            Description = $"Show information about {Constants.AppName}",
             DefaultValueFactory = _ => false
         };
         

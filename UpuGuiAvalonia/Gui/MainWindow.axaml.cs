@@ -34,8 +34,6 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
         AvaloniaLogSink.MessageLogged += OnMessageLogged;
 
-        DragDrop.AddDragOverHandler(this, OnDragOver);
-        DragDrop.AddDropHandler(this, OnDrop);
 
         Closed += (_, _) =>
         {
@@ -241,22 +239,35 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    private static IReadOnlyList<PackageNode> BuildTree(IReadOnlyList<ExtractedUnityPackageAsset> assets)
+    private static List<PackageNode> BuildTree(IReadOnlyList<ExtractedUnityPackageAsset> assets)
     {
-        var root = new PackageNode("Assets", "Assets", true, IconCatalog.Folder);
-        var directoryLookup =
-            new Dictionary<string, PackageNode>(StringComparer.OrdinalIgnoreCase) { ["Assets"] = root };
+        var roots = new List<PackageNode>();
+        var rootLookup = new Dictionary<string, PackageNode>(StringComparer.OrdinalIgnoreCase);
+        var directoryLookup = new Dictionary<string, PackageNode>(StringComparer.OrdinalIgnoreCase);
         foreach (ExtractedUnityPackageAsset asset in assets.OrderBy(x => x.AssetPath, StringComparer.OrdinalIgnoreCase))
         {
             string[] segments = asset.AssetPath.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries);
-            if (segments.Length == 0 || !string.Equals(segments[0], "Assets", StringComparison.OrdinalIgnoreCase))
+            if (segments.Length < 2) continue;
+            string hierarchy = segments[0];
+            if (!string.Equals(hierarchy, "Assets", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(hierarchy, "Packages", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
+            if (!rootLookup.TryGetValue(hierarchy, out PackageNode? root))
+            {
+                root = new PackageNode(hierarchy, hierarchy, true, IconCatalog.Folder);
+                rootLookup.Add(hierarchy, root);
+                directoryLookup.Add(hierarchy, root);
+                roots.Add(root);
+            }
+
             PackageNode parent = root;
-            string currentPath = "Assets";
+            string currentPath = hierarchy;
+
             int directoryEnd = asset.IsFolder ? segments.Length : segments.Length - 1;
+
             for (int i = 1; i < directoryEnd; i++)
             {
                 currentPath += "/" + segments[i];
@@ -272,27 +283,25 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
             if (asset.IsFolder)
             {
-                if (segments.Length > 1)
+                string folderPath = string.Join('/', segments);
+                if (!directoryLookup.ContainsKey(folderPath))
                 {
-                    string folderPath = string.Join('/', segments);
-                    if (!directoryLookup.ContainsKey(folderPath))
-                    {
-                        var folder = new PackageNode(segments[^1], folderPath, true, IconCatalog.Folder, metaContent: asset.MetaContent);
-                        directoryLookup.Add(folderPath, folder);
-                        parent.Children.Add(folder);
-                    }
+                    var folder = new PackageNode(segments[^1], folderPath, true, IconCatalog.Folder,
+                        metaContent: asset.MetaContent);
+                    directoryLookup.Add(folderPath, folder);
+                    parent.Children.Add(folder);
                 }
 
                 continue;
             }
 
             string fileName = segments[^1];
-            var fileNode = new PackageNode(fileName, string.Join('/', segments), isDirectory: false,
-                IconCatalog.ForExtension(Path.GetExtension(fileName)), asset.AssetContent, asset.MetaContent);
+            string filePath = string.Join('/', segments);
+            var fileNode = new PackageNode(fileName, filePath, isDirectory: false, IconCatalog.ForExtension(Path.GetExtension(fileName)), asset.AssetContent, asset.MetaContent);
             parent.Children.Add(fileNode);
         }
 
-        return [root];
+        return roots;
     }
 
     private async void OnUnpackClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -377,8 +386,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
     private static string ResolveOutputPath(string outputRoot, string assetPath)
     {
-        string relative = assetPath.Replace('/', Path.DirectorySeparatorChar)
-            .Replace('\\', Path.DirectorySeparatorChar);
+        string relative = assetPath.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar);
         string destination = Path.GetFullPath(Path.Combine(outputRoot, relative));
         string prefix = Path.TrimEndingDirectorySeparator(outputRoot) + Path.DirectorySeparatorChar;
         StringComparison comparison = OperatingSystem.IsWindows()
