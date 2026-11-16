@@ -78,21 +78,22 @@ public static class UnityPackageExtractor
             string pathname = Encoding.UTF8.GetString(pathnameContent);
             ParsePathname(pathname, out string assetPath, out string? digest);
             assetPath = ValidateAssetPath(assetPath);
+
             packageEntry.Streams.TryGetValue("asset", out byte[]? assetContent);
             packageEntry.Streams.TryGetValue("asset.meta", out byte[]? metaContent);
-            bool isFolder = assetContent is null;
             var asset = new ExtractedUnityPackageAsset(Guid: packageEntry.Guid, AssetPath: assetPath,
-                AssetContent: assetContent, MetaContent: metaContent, Md4Digest: digest, IsFolder: isFolder);
+                AssetContent: assetContent, MetaContent: metaContent, Md4Digest: digest);
+
             result.Add(asset);
             completed++;
             Logger.Information("Loaded {Completed}/{Total}: {AssetPath}", completed, assets.Count, assetPath);
         }
 
-        int fileCount = result.Count(x => !x.IsFolder);
-        int folderCount = result.Count(x => x.IsFolder);
+        int assetCount = result.Count;
         int metadataCount = result.Count(x => x.MetaContent is not null);
-        Logger.Information("Unity package extraction finished. Assets: {AssetCount}, Folders: {FolderCount}, Metadata: {MetadataCount}, Icon: {HasIcon}",
-            fileCount, folderCount, metadataCount, packageIcon is { Length: > 0 });
+
+        Logger.Information("Unity package extraction finished. Assets: {AssetCount}, Metadata: {MetadataCount}, Icon: {HasIcon}", assetCount, metadataCount, packageIcon is { Length: > 0 });
+
         return new UnityPackageExtractionResult(result, packageIcon);
     }
 

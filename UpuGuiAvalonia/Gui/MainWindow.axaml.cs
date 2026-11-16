@@ -145,8 +145,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             foreach (PackageNode node in BuildTree(_assets)) RootNodes.Add(node);
             HasPackage = true;
             SelectAll = true;
-            Logger.Information("Package loaded into memory. Assets: {AssetCount}; Icon: {HasIcon}",
-                _assets.Count(x => !x.IsFolder), PackageIcon is { Length: > 0 });
+            Logger.Information("Package loaded into memory. Assets: {AssetCount}; Icon: {HasIcon}", _assets.Count, PackageIcon is { Length: > 0 });
             Logger.Information("Select the folders and files to export, then choose Unpack now");
         }
         catch (Exception ex)
@@ -179,8 +178,8 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
             PackageNode parent = root;
             string currentPath = "Assets";
-            int directoryEnd = asset.IsFolder ? segments.Length : segments.Length - 1;
-            for (int i = 1; i < directoryEnd; i++)
+
+            for (int i = 1; i < segments.Length - 1; i++)
             {
                 currentPath += "/" + segments[i];
                 if (!directoryLookup.TryGetValue(currentPath, out PackageNode? directory))
@@ -191,22 +190,6 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
                 }
 
                 parent = directory;
-            }
-
-            if (asset.IsFolder)
-            {
-                if (segments.Length > 1)
-                {
-                    string folderPath = string.Join('/', segments);
-                    if (!directoryLookup.ContainsKey(folderPath))
-                    {
-                        var folder = new PackageNode(segments[^1], folderPath, true, IconCatalog.Folder, metaContent: asset.MetaContent);
-                        directoryLookup.Add(folderPath, folder);
-                        parent.Children.Add(folder);
-                    }
-                }
-
-                continue;
             }
 
             string fileName = segments[^1];
