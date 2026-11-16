@@ -2,22 +2,21 @@
 using System.IO.Compression;
 using System.Text;
 using Serilog;
-using UnityPackageToolsNet.Models;
+using UpuGuiAvalonia.Models;
 
-namespace UnityPackageToolsNet.Services;
+namespace UpuGuiAvalonia.Services;
 
 public static class UnityPackageExtractor
 {
     private static readonly ILogger Logger = Log.ForContext(typeof(UnityPackageExtractor));
     private static readonly HashSet<string> SupportedStreams = ["asset", "asset.meta", "pathname"];
 
-    public static async Task<IReadOnlyList<ExtractedUnityPackageAsset>> ExtractAsync(string packagePath, string outputDirectory, bool extractMetadata, CancellationToken cancellationToken = default)
+    public static async Task<UnityPackageExtractionResult> ExtractAsync(string packagePath, CancellationToken cancellationToken = default)
     {
         if (!File.Exists(packagePath)) throw new FileNotFoundException("Unity package not found.", packagePath);
-        string root = Path.GetFullPath(outputDirectory);
-        Directory.CreateDirectory(root);
-        Logger.Information("Opening Unity package {PackagePath}", packagePath);
-        await using var input = new FileStream(packagePath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920,
+        string fullPackagePath = Path.GetFullPath(packagePath);
+        Logger.Information("Opening Unity package {PackagePath}", fullPackagePath);
+        await using var input = new FileStream(fullPackagePath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920,
             FileOptions.Asynchronous | FileOptions.SequentialScan);
         byte[]? packageIcon = ReadPackageIcon(input);
         input.Position = 0;
@@ -37,6 +36,7 @@ public static class UnityPackageExtractor
             if (entryName.Equals(".icon.png", StringComparison.OrdinalIgnoreCase))
             {
                 packageIcon = await ReadEntryAsync(entry.DataStream, cancellationToken);
+                Logger.Information("Read package icon into memory ({IconSize} bytes)", packageIcon.Length);
                 continue;
             }
 
@@ -60,18 +60,11 @@ public static class UnityPackageExtractor
             byte[] content = await ReadEntryAsync(entry.DataStream, cancellationToken);
             packageEntry.Streams.Add(streamName, content);
             entriesRead++;
-            Logger.Debug("Read package stream {StreamName} for GUID {Guid}", streamName, guid);
+            Logger.Debug("Read package stream {StreamName} for GUID {Guid} ({Size} bytes)", streamName, guid, content.Length);
         }
 
         Logger.Information("Read {StreamCount} package streams belonging to {AssetCount} assets", entriesRead,
             assets.Count);
-        if (packageIcon is { Length: > 0 })
-        {
-            string iconPath = Path.Combine(root, ".icon.png");
-            await File.WriteAllBytesAsync(iconPath, packageIcon, cancellationToken);
-            Logger.Information("Extracted package icon to {IconPath}", iconPath);
-        }
-
         var result = new List<ExtractedUnityPackageAsset>(assets.Count);
         int completed = 0;
         foreach (PackageEntry packageEntry in assets.Values)
@@ -84,43 +77,23 @@ public static class UnityPackageExtractor
 
             string pathname = Encoding.UTF8.GetString(pathnameContent);
             ParsePathname(pathname, out string assetPath, out string? digest);
-            string destination = ResolveAssetPath(root, assetPath);
-            string? assetFile = null;
-            string? metaFile = null;
-            bool isFolder = !packageEntry.Streams.TryGetValue("asset", out byte[]? assetContent);
-            if (isFolder)
-            {
-                Directory.CreateDirectory(destination);
-                Logger.Debug("Created folder {AssetPath} ({Guid})", assetPath, packageEntry.Guid);
-            }
-            else
-            {
-                string? parent = Path.GetDirectoryName(destination);
-                if (parent is not null) Directory.CreateDirectory(parent);
-                await File.WriteAllBytesAsync(destination, assetContent!, cancellationToken);
-                assetFile = destination;
-                Logger.Debug("Extracted asset {AssetPath} ({Guid})", assetPath, packageEntry.Guid);
-            }
-
-            if (extractMetadata && packageEntry.Streams.TryGetValue("asset.meta", out byte[]? metaContent))
-            {
-                string metaDestination = destination + ".meta";
-                string? parent = Path.GetDirectoryName(metaDestination);
-                if (parent is not null) Directory.CreateDirectory(parent);
-                await File.WriteAllBytesAsync(metaDestination, metaContent, cancellationToken);
-                metaFile = metaDestination;
-                Logger.Debug("Extracted metadata {MetaPath}", metaDestination);
-            }
-
-            result.Add(new ExtractedUnityPackageAsset(Guid: packageEntry.Guid, AssetPath: assetPath,
-                AssetFile: assetFile, MetaFile: metaFile, PreviewFile: null, Md4Digest: digest, IsFolder: isFolder));
+            assetPath = ValidateAssetPath(assetPath);
+            packageEntry.Streams.TryGetValue("asset", out byte[]? assetContent);
+            packageEntry.Streams.TryGetValue("asset.meta", out byte[]? metaContent);
+            bool isFolder = assetContent is null;
+            var asset = new ExtractedUnityPackageAsset(Guid: packageEntry.Guid, AssetPath: assetPath,
+                AssetContent: assetContent, MetaContent: metaContent, Md4Digest: digest, IsFolder: isFolder);
+            result.Add(asset);
             completed++;
-            Logger.Information("Extracted {Completed}/{Total}: {AssetPath}", completed, assets.Count, assetPath);
+            Logger.Information("Loaded {Completed}/{Total}: {AssetPath}", completed, assets.Count, assetPath);
         }
 
-        Logger.Information("Unity package extraction finished. Assets: {AssetCount}, Folders: {FolderCount}, Metadata: {MetadataCount}",
-            result.Count(x => !x.IsFolder), result.Count(x => x.IsFolder), result.Count(x => x.MetaFile is not null));
-        return result;
+        int fileCount = result.Count(x => !x.IsFolder);
+        int folderCount = result.Count(x => x.IsFolder);
+        int metadataCount = result.Count(x => x.MetaContent is not null);
+        Logger.Information("Unity package extraction finished. Assets: {AssetCount}, Folders: {FolderCount}, Metadata: {MetadataCount}, Icon: {HasIcon}",
+            fileCount, folderCount, metadataCount, packageIcon is { Length: > 0 });
+        return new UnityPackageExtractionResult(result, packageIcon);
     }
 
     private static byte[]? ReadPackageIcon(Stream stream)
@@ -242,13 +215,19 @@ public static class UnityPackageExtractor
             digest = null;
         }
 
-        if (string.IsNullOrWhiteSpace(path)) throw new InvalidDataException("Empty Unity asset pathname.");
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            throw new InvalidDataException("Empty Unity asset pathname.");
+        }
+
         path = path.Trim();
         if (path.Contains('\r') || path.Contains('\n') || path.Contains('\0'))
+        {
             throw new InvalidDataException($"Unity asset pathname contains line breaks: {path}");
+        }
     }
 
-    private static string ResolveAssetPath(string root, string assetPath)
+    private static string ValidateAssetPath(string assetPath)
     {
         string normalized = assetPath.Replace('\\', '/');
         if (normalized.StartsWith('/') || Path.IsPathRooted(normalized) || normalized.Contains(':'))
@@ -257,19 +236,13 @@ public static class UnityPackageExtractor
         }
 
         string[] segments = normalized.Split('/');
-        if (segments.Length == 0 || segments[0] != "Assets" || segments.Any(x => x is "" or "." or ".."))
+        if (segments.Length == 0 || !string.Equals(segments[0], "Assets", StringComparison.OrdinalIgnoreCase) ||
+            segments.Any(x => x is "" or "." or ".."))
         {
             throw new InvalidDataException($"Invalid Unity asset path: {assetPath}");
         }
 
-        string destination = Path.GetFullPath(Path.Combine(root, Path.Combine(segments)));
-        string prefix = Path.TrimEndingDirectorySeparator(root) + Path.DirectorySeparatorChar;
-        if (!destination.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidDataException($"Asset path escapes output directory: {assetPath}");
-        }
-
-        return destination;
+        return string.Join('/', segments);
     }
 
     private sealed class PackageEntry(string guid)

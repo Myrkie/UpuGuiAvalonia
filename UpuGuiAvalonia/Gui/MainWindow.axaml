@@ -1,0 +1,178 @@
+<Window
+    x:Class="UpuGuiAvalonia.Gui.MainWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:UpuGuiAvalonia.Gui"
+    x:DataType="vm:MainWindow"
+    Title="Unitypackage Unpacker for Unity"
+    Width="666"
+    Height="495"
+    MinWidth="522"
+    MinHeight="294">
+
+    <Grid Margin="14"
+          RowDefinitions="*,38,32,22"
+          RowSpacing="5">
+
+        <GroupBox Grid.Row="0"
+                  Header="{Binding PackageHeader}"
+                  Padding="4">
+
+            <Grid ColumnDefinitions="*,*"
+                  RowDefinitions="*,32"
+                  ColumnSpacing="6"
+                  RowSpacing="5">
+
+                <TreeView
+                    x:Name="TreeViewContents"
+                    Grid.Row="0"
+                    Grid.Column="0"
+                    ItemsSource="{Binding RootNodes}">
+
+                    <TreeView.ItemTemplate>
+                        <TreeDataTemplate
+                            DataType="{x:Type vm:PackageNode}"
+                            x:DataType="vm:PackageNode"
+                            ItemsSource="{Binding Children}">
+
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+
+                                <CheckBox
+                                    IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                    VerticalAlignment="Center" />
+
+                                <Image
+                                    Source="{Binding Icon}"
+                                    Width="16"
+                                    Height="16"
+                                    Stretch="Uniform" />
+
+                                <TextBlock
+                                    Text="{Binding Name}"
+                                    VerticalAlignment="Center" />
+
+                            </StackPanel>
+
+                        </TreeDataTemplate>
+                    </TreeView.ItemTemplate>
+                </TreeView>
+
+                <TextBox
+                    x:Name="ConsoleTextBox"
+                    Grid.Row="0"
+                    Grid.Column="1"
+                    AcceptsReturn="True"
+                    IsReadOnly="True"
+                    Text=""
+                    TextWrapping="Wrap"
+                    TextAlignment="Left"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Stretch"
+                    ScrollViewer.VerticalScrollBarVisibility="Auto"
+                    ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
+
+                <Grid
+                    Grid.Row="1"
+                    Grid.ColumnSpan="2" Grid.Column="0"
+                    ColumnDefinitions="70,70,*,Auto"
+                    ColumnSpacing="4">
+
+                    <Button
+                        Grid.Column="0"
+                        Content="Expand"
+                        Click="OnExpandClick"
+                        IsEnabled="{Binding HasPackage}"
+                        MinHeight="28"
+                        Padding="6,2"
+                        VerticalContentAlignment="Center" />
+
+                    <Button
+                        Grid.Column="1"
+                        Content="Collapse"
+                        Click="OnCollapseClick"
+                        IsEnabled="{Binding HasPackage}"
+                        MinHeight="28"
+                        Padding="6,2"
+                        VerticalContentAlignment="Center" />
+
+                    <CheckBox
+                        Grid.Column="3"
+                        Content="Select All"
+                        IsChecked="{Binding SelectAll, Mode=TwoWay}"
+                        IsEnabled="{Binding HasPackage}"
+                        VerticalAlignment="Center"
+                        Margin="0,0,8,0" />
+
+                </Grid>
+
+            </Grid>
+        </GroupBox>
+
+        <Grid
+            Grid.Row="1"
+            ColumnDefinitions="Auto,Auto,*,Auto,80,80"
+            ColumnSpacing="7">
+
+            <Button
+                Grid.Column="0"
+                Content="Select Input File"
+                Click="OnSelectInputFileClick"
+                VerticalContentAlignment="Center" />
+
+            <Button
+                Grid.Column="1"
+                Content="Unpack now"
+                Click="OnUnpackClick"
+                IsEnabled="{Binding CanUnpack}"
+                VerticalContentAlignment="Center" />
+
+            <CheckBox
+                Grid.Column="3"
+                Content="ExportMeta"
+                MinWidth="89"
+                IsChecked="{Binding ExportMeta, Mode=TwoWay}"
+                VerticalAlignment="Center"
+                HorizontalAlignment="Right" />
+
+            <Button
+                Grid.Column="4"
+                Content="About"
+                Click="OnAboutClick"
+                VerticalContentAlignment="Center" />
+
+            <Button
+                Grid.Column="5"
+                Content="Exit"
+                Click="OnExitClick"
+                VerticalContentAlignment="Center" />
+
+        </Grid>
+
+        <Grid Grid.Row="2"
+              ColumnDefinitions="306,*">
+
+            <Button
+                x:Name="BtnRegisterUnregister"
+                Grid.Column="0"
+                Content="Register Context Menu Handler"
+                Click="OnRegisterUnregisterClick"
+                VerticalContentAlignment="Center" />
+
+        </Grid>
+
+        <Grid Grid.Row="3">
+
+            <Border />
+
+            <ProgressBar
+                x:Name="ProgressBar"
+                Height="16"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Center"
+                IsIndeterminate="True"
+                IsVisible="{Binding IsBusy}" />
+
+        </Grid>
+
+    </Grid>
+</Window>
