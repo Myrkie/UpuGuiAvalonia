@@ -14,9 +14,10 @@ namespace UpuGuiAvalonia.Gui;
 
 public sealed partial class MainWindow : Window, INotifyPropertyChanged
 {
-    private const string ShellRegistryPath = @"Software\Classes\SystemFileAssociations\.unitypackage\shell\UpuGuiAvalonia";
-
     private static readonly ILogger Logger = Log.ForContext<MainWindow>();
+    
+    private const string ShellRegistryPath = @"Software\Classes\*\shell\UpuGuiAvalonia";
+    private const string ShellRegistryMetadataPath = @"Software\Classes\*\shell\UpuGuiAvaloniaMetadata";
     private string? _loadedPackage;
     private IReadOnlyList<ExtractedUnityPackageAsset> _assets = [];
 
@@ -347,7 +348,8 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             if (IsShellHandlerRegistered())
             {
                 Registry.CurrentUser.DeleteSubKeyTree(ShellRegistryPath, throwOnMissingSubKey: false);
-                Logger.Information("Explorer context menu handler unregistered");
+                Registry.CurrentUser.DeleteSubKeyTree(ShellRegistryMetadataPath, throwOnMissingSubKey: false);
+                Logger.Information("Explorer context menu handlers unregistered");
             }
             else
             {
@@ -358,20 +360,31 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
                     Logger.Warning("Context menu registration requires the packaged .exe application");
                     return;
                 }
+                
+                using (RegistryKey key = Registry.CurrentUser.CreateSubKey(ShellRegistryPath))
+                {
+                    key.SetValue(string.Empty, "Extract with UpuGuiAvalonia");
+                    key.SetValue("Icon", executable);
+                    using RegistryKey command = key.CreateSubKey("command");
+                    command.SetValue(string.Empty, $"\"{executable}\" --extract \"%1\"");
+                }
+                
+                using (RegistryKey key = Registry.CurrentUser.CreateSubKey(ShellRegistryMetadataPath))
+                {
+                    key.SetValue(string.Empty, "Extract with UpuGuiAvalonia (with metadata)");
+                    key.SetValue("Icon", executable);
+                    using RegistryKey command = key.CreateSubKey("command");
+                    command.SetValue(string.Empty, $"\"{executable}\" --extract-metadata \"%1\"");
+                }
 
-                using RegistryKey key = Registry.CurrentUser.CreateSubKey(ShellRegistryPath);
-                key.SetValue(string.Empty, "Extract with UpuGuiAvalonia");
-                key.SetValue("Icon", executable);
-                using RegistryKey command = key.CreateSubKey("command");
-                command.SetValue(string.Empty, $"\"{executable}\" --extract \"%1\"");
-                Logger.Information("Explorer context menu handler registered");
+                Logger.Information("Explorer context menu handlers registered");
             }
 
             UpdateShellButtonText();
         }
         catch (Exception ex)
         {
-            Logger.Error(ex, "Unable to update the Explorer context menu handler");
+            Logger.Error(ex, "Unable to update the Explorer context menu handlers");
         }
     }
 
@@ -393,7 +406,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     {
         try
         {
-            Process.Start(new ProcessStartInfo("https://github.com/Myrkie/UpuGui") { UseShellExecute = true });
+            Process.Start(new ProcessStartInfo("https://github.com/Myrkie/UpuGuiAvalonia") { UseShellExecute = true });
         }
         catch (Exception ex)
         {

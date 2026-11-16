@@ -1,21 +1,27 @@
+using System.Reflection;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
-using Avalonia.Platform;
+using Serilog;
 
 namespace UpuGuiAvalonia.Gui;
 
 internal static class IconCatalog
 {
-    private const string ResourceRoot = "avares://UpuGuiAvalonia/Assets/Icons/";
+    private static readonly ILogger Logger = Log.ForContext(typeof(IconCatalog));
+    private static readonly Assembly Assembly = typeof(IconCatalog).Assembly;
+    private const string ResourceRoot = "UpuGuiAvalonia.Icons.";
     private static readonly Dictionary<string, IImage?> Cache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Lock CacheLock = new();
     public static IImage? Folder => Load("d_Folder Icon.png");
 
     public static IImage? ForExtension(string? extension)
     {
-        string icon = (extension ?? string.Empty).TrimStart('.').ToLowerInvariant() switch
+        if (string.IsNullOrWhiteSpace(extension)) return Load("d__Help.png");
+        string iconName = extension.Trim().TrimStart('.').ToLowerInvariant();
+        string fileName = iconName switch
         {
             "anim" => "d_AnimationClip Icon.png",
-            "dll" => "d_Assembly Icon.png",
+            "asmdef" => "d_Assembly Icon.png",
             "cs" => "d_cs Script Icon.png",
             "prefab" => "d_PrefabModel Icon.png",
             "mat" => "d_Material Icon.png",
@@ -30,24 +36,37 @@ internal static class IconCatalog
             "mp3" or "off" or "wav" or "aiff" or "aif" or "mod" or "it" or "s3m" or "xm" => "d_AudioSource Icon.png",
             _ => "d__Help.png"
         };
-        return Load(icon);
+        return Load(fileName);
     }
 
     private static IImage? Load(string fileName)
     {
-        if (Cache.TryGetValue(fileName, out IImage? cached)) return cached;
-        try
+        lock (CacheLock)
         {
-            var uri = new Uri(ResourceRoot + Uri.EscapeDataString(fileName));
-            using Stream stream = AssetLoader.Open(uri);
-            var bitmap = new Bitmap(stream);
-            Cache[fileName] = bitmap;
-            return bitmap;
-        }
-        catch
-        {
-            Cache[fileName] = null;
-            return null;
+            if (Cache.TryGetValue(fileName, out IImage? cached)) return cached;
+            string resourceName = ResourceRoot + fileName;
+            try
+            {
+                Logger.Debug("Loading embedded icon: {ResourceName}", resourceName);
+                using Stream? stream = Assembly.GetManifestResourceStream(resourceName);
+                if (stream is null)
+                {
+                    Logger.Error("Embedded icon resource not found: {ResourceName}", resourceName);
+                    Cache[fileName] = null;
+                    return null;
+                }
+
+                var bitmap = new Bitmap(stream);
+                Cache[fileName] = bitmap;
+                Logger.Debug("Successfully loaded embedded icon: {FileName}", fileName);
+                return bitmap;
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Failed to load embedded icon: {ResourceName}", resourceName);
+                Cache[fileName] = null;
+                return null;
+            }
         }
     }
 }

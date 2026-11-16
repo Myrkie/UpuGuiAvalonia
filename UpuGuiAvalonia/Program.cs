@@ -4,34 +4,36 @@ using System.Text;
 using Avalonia;
 using Serilog;
 using Serilog.Core;
+using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
 using UpuGuiAvalonia.Cli;
 using UpuGuiAvalonia.Gui;
 
 namespace UpuGuiAvalonia;
 
-internal static class Program
+internal static partial class Program
 {
     private static ILogger Logger => Log.ForContext(typeof(Program));
+    private const string ConfigRoot = "UpuGuiAvalonia.conf";
+    private static readonly string LogPath = Path.Combine(AppContext.BaseDirectory, ConfigRoot, "Logs", $"log-{DateTime.Now:M-d-yyyy-HH-mm}.txt");
 
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool FreeConsole();
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial void FreeConsole();
 
     [STAThread]
     private static async Task<int> Main(string[] args)
     {
-        // GUI mode
         if (args.Length == 0)
         {
             if (OperatingSystem.IsWindows())
                 FreeConsole();
 
-            ConfigureGuiLogging();
+            ConfigureGuiLogging(); 
 
             try
             {
-                return BuildAvaloniaApp()
-                    .StartWithClassicDesktopLifetime(args);
+                return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
             }
             finally
             {
@@ -39,23 +41,7 @@ internal static class Program
             }
         }
 
-        // CLI mode
         ConfigureCliLogging();
-
-        using var cancellation = new CancellationTokenSource();
-
-        ConsoleCancelEventHandler cancelHandler = (_, e) =>
-        {
-            e.Cancel = true;
-
-            if (cancellation.IsCancellationRequested)
-                return;
-
-            Logger.Information("Cancellation requested...");
-            cancellation.Cancel();
-        };
-
-        Console.CancelKeyPress += cancelHandler;
 
         try
         {
@@ -64,8 +50,7 @@ internal static class Program
 
             var root = PackageOptions.CreateCommand();
 
-            return await root.Parse(args)
-                .InvokeAsync(cancellationToken: cancellation.Token);
+            return await root.Parse(args).InvokeAsync();
         }
         catch (OperationCanceledException ex)
         {
@@ -79,32 +64,58 @@ internal static class Program
         }
         finally
         {
-            Console.CancelKeyPress -= cancelHandler;
             await Log.CloseAndFlushAsync();
         }
     }
 
     private static void ConfigureGuiLogging()
     {
+        var levelSwitch = new LoggingLevelSwitch
+        {
+#if DEBUG
+    MinimumLevel = LogEventLevel.Debug
+#else
+            MinimumLevel = LogEventLevel.Information
+#endif
+        };
+        
         Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Verbose()
+            .MinimumLevel.ControlledBy(levelSwitch)
             .WriteTo.Sink(new AvaloniaLogSink())
+            .WriteTo.File(
+                path: LogPath,
+                outputTemplate:
+                "[{Timestamp:HH:mm:ss} {Level:u3}] [{SourceContext}] {Message:lj}{NewLine}{Exception}",
+                retainedFileCountLimit: 4,
+                shared: true)
             .CreateLogger();
     }
 
     private static void ConfigureCliLogging()
     {
+        var levelSwitch = new LoggingLevelSwitch
+        {
+#if DEBUG
+    MinimumLevel = LogEventLevel.Debug
+#else
+            MinimumLevel = LogEventLevel.Information
+#endif
+        };
+        
         Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Verbose()
+            .MinimumLevel.ControlledBy(levelSwitch)
             .WriteTo.Console(
                 outputTemplate:
                     "[{Timestamp:HH:mm:ss} {Level:u3}] [{SourceContext}] {Message:lj}{NewLine}{Exception}",
                 theme: AnsiConsoleTheme.Code)
+            .WriteTo.File(
+                path: LogPath,
+                outputTemplate:
+                "[{Timestamp:HH:mm:ss} {Level:u3}] [{SourceContext}] {Message:lj}{NewLine}{Exception}",
+                retainedFileCountLimit: 4,
+                shared: true)
             .CreateLogger();
     }
 
-    private static AppBuilder BuildAvaloniaApp() =>
-        AppBuilder.Configure<App>()
-            .UsePlatformDetect()
-            .LogToTrace();
+    private static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>().UsePlatformDetect().WithInterFont().LogToTrace();
 }

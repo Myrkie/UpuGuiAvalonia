@@ -73,7 +73,8 @@
 
                 <Grid
                     Grid.Row="1"
-                    Grid.ColumnSpan="2" Grid.Column="0"
+                    Grid.ColumnSpan="2"
+                    Grid.Column="0"
                     ColumnDefinitions="70,70,*,Auto"
                     ColumnSpacing="4">
 
@@ -110,7 +111,7 @@
 
         <Grid
             Grid.Row="1"
-            ColumnDefinitions="Auto,Auto,*,Auto,80,80"
+            ColumnDefinitions="Auto,Auto,*,Auto"
             ColumnSpacing="7">
 
             <Button
@@ -134,22 +135,11 @@
                 VerticalAlignment="Center"
                 HorizontalAlignment="Right" />
 
-            <Button
-                Grid.Column="4"
-                Content="About"
-                Click="OnAboutClick"
-                VerticalContentAlignment="Center" />
-
-            <Button
-                Grid.Column="5"
-                Content="Exit"
-                Click="OnExitClick"
-                VerticalContentAlignment="Center" />
-
         </Grid>
 
-        <Grid Grid.Row="2"
-              ColumnDefinitions="306,*">
+        <Grid
+            Grid.Row="2"
+            ColumnDefinitions="Auto,*,Auto">
 
             <Button
                 x:Name="BtnRegisterUnregister"
@@ -157,6 +147,25 @@
                 Content="Register Context Menu Handler"
                 Click="OnRegisterUnregisterClick"
                 VerticalContentAlignment="Center" />
+
+            <StackPanel
+                Grid.Column="2"
+                Orientation="Horizontal"
+                HorizontalAlignment="Right"
+                Spacing="0">
+
+                <Button
+                    Content="About"
+                    Click="OnAboutClick"
+                    VerticalContentAlignment="Center" />
+
+                <Button
+                    Content="Exit"
+                    Click="OnExitClick"
+                    VerticalContentAlignment="Center"
+                    Margin="0" />
+
+            </StackPanel>
 
         </Grid>
 
