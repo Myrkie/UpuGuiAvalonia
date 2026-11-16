@@ -19,23 +19,36 @@ internal static partial class Program
 
     [LibraryImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial void FreeConsole();
+    private static partial bool AttachConsole(uint dwProcessId);
+    private const uint AttachParentProcess = 0xFFFFFFFF;
 
-    [LibraryImport("kernel32.dll")]
-    private static partial nint GetConsoleWindow();
+    private static bool TryAttachToParentConsole()
+    {
+        return OperatingSystem.IsWindows() &&
+               AttachConsole(AttachParentProcess);
+    }
 
     [STAThread]
     private static int Main(string[] args)
     {
-        bool hasConsole = OperatingSystem.IsWindows() && GetConsoleWindow() != nint.Zero;
+        bool isCli = args.Length != 0;
+        bool hasConsole = isCli || TryAttachToParentConsole();
 
-        ConfigureLogging(logToConsole: args.Length != 0 || hasConsole, logToGui: args.Length == 0);
+        ConfigureLogging(
+            logToConsole: hasConsole,
+            logToGui: !isCli
+        );
+
         try
         {
-            if (args.Length != 0) return RunCli(args);
-            if (OperatingSystem.IsWindows() && !hasConsole) FreeConsole();
-            if (OperatingSystem.IsLinux()) Utils.Utilities.ConfigureNativeLibraries();
-            return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+            if (isCli)
+                return RunCli(args);
+
+            if (OperatingSystem.IsLinux())
+                Utils.Utilities.ConfigureNativeLibraries();
+
+            return BuildAvaloniaApp()
+                .StartWithClassicDesktopLifetime(args);
         }
         catch (OperationCanceledException ex)
         {
