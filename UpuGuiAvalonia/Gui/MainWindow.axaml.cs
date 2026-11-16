@@ -5,10 +5,10 @@ using System.Runtime.CompilerServices;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
-using Microsoft.Win32;
 using Serilog;
 using UpuGuiAvalonia.Models;
 using UpuGuiAvalonia.Services;
+using UpuGuiAvalonia.Utils;
 
 namespace UpuGuiAvalonia.Gui;
 
@@ -16,8 +16,6 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 {
     private static readonly ILogger Logger = Log.ForContext<MainWindow>();
     
-    private const string ShellRegistryPath = @"Software\Classes\*\shell\UpuGuiAvalonia";
-    private const string ShellRegistryMetadataPath = @"Software\Classes\*\shell\UpuGuiAvaloniaMetadata";
     private string? _loadedPackage;
     private IReadOnlyList<ExtractedUnityPackageAsset> _assets = [];
 
@@ -26,7 +24,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         InitializeComponent();
         DataContext = this;
         SelectAll = true;
-        UpdateShellButtonText();
+        Utilities.UpdateShellButtonText(BtnRegisterUnregister);
         AvaloniaLogSink.MessageLogged += OnMessageLogged;
         Closed += (_, _) =>
         {
@@ -92,15 +90,22 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
     private async void OnSelectInputFileClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        IReadOnlyList<IStorageFile> files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        try
         {
-            Title = "Select Unity package",
-            AllowMultiple = false,
-            FileTypeFilter = [new FilePickerFileType("Unitypackage Files") { Patterns = ["*.unitypackage"] }]
-        });
-        if (files.Count == 0) return;
-        string? path = files[0].TryGetLocalPath();
-        if (!string.IsNullOrWhiteSpace(path)) await OpenPackageAsync(path);
+            IReadOnlyList<IStorageFile> files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Select Unity package",
+                AllowMultiple = false,
+                FileTypeFilter = [new FilePickerFileType("Unitypackage Files") { Patterns = ["*.unitypackage"] }]
+            });
+            if (files.Count == 0) return;
+            string? path = files[0].TryGetLocalPath();
+            if (!string.IsNullOrWhiteSpace(path)) await OpenPackageAsync(path);
+        }
+        catch (Exception ex)
+        {
+            Logger.Fatal(ex, "Failed selection");
+        }
     }
 
     private async Task OpenPackageAsync(string filePathName)
@@ -215,16 +220,23 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
     private async void OnUnpackClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        if (!HasPackage || IsBusy) return;
-        IReadOnlyList<IStorageFolder> folders =
-            await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
-            {
-                Title = "Select output folder", AllowMultiple = false
-            });
-        if (folders.Count == 0) return;
-        string? outputDirectory = folders[0].TryGetLocalPath();
-        if (string.IsNullOrWhiteSpace(outputDirectory)) return;
-        await ExportSelectedAsync(outputDirectory);
+        try
+        {
+            if (!HasPackage || IsBusy) return;
+            IReadOnlyList<IStorageFolder> folders =
+                await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+                {
+                    Title = "Select output folder", AllowMultiple = false
+                });
+            if (folders.Count == 0) return;
+            string? outputDirectory = folders[0].TryGetLocalPath();
+            if (string.IsNullOrWhiteSpace(outputDirectory)) return;
+            await ExportSelectedAsync(outputDirectory);
+        }
+        catch (Exception ex)
+        {
+            Logger.Fatal(ex, "Failed unpack click");
+        }
     }
 
     private async Task ExportSelectedAsync(string outputDirectory)
@@ -337,76 +349,14 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
     private void OnRegisterUnregisterClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            Logger.Warning("Explorer context menu integration is only available on Windows");
-            return;
-        }
-
-        try
-        {
-            if (IsShellHandlerRegistered())
-            {
-                Registry.CurrentUser.DeleteSubKeyTree(ShellRegistryPath, throwOnMissingSubKey: false);
-                Registry.CurrentUser.DeleteSubKeyTree(ShellRegistryMetadataPath, throwOnMissingSubKey: false);
-                Logger.Information("Explorer context menu handlers unregistered");
-            }
-            else
-            {
-                string? executable = Environment.ProcessPath;
-                if (string.IsNullOrWhiteSpace(executable) ||
-                    !executable.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
-                {
-                    Logger.Warning("Context menu registration requires the packaged .exe application");
-                    return;
-                }
-                
-                using (RegistryKey key = Registry.CurrentUser.CreateSubKey(ShellRegistryPath))
-                {
-                    key.SetValue(string.Empty, "Extract with UpuGuiAvalonia");
-                    key.SetValue("Icon", executable);
-                    using RegistryKey command = key.CreateSubKey("command");
-                    command.SetValue(string.Empty, $"\"{executable}\" --extract \"%1\"");
-                }
-                
-                using (RegistryKey key = Registry.CurrentUser.CreateSubKey(ShellRegistryMetadataPath))
-                {
-                    key.SetValue(string.Empty, "Extract with UpuGuiAvalonia (with metadata)");
-                    key.SetValue("Icon", executable);
-                    using RegistryKey command = key.CreateSubKey("command");
-                    command.SetValue(string.Empty, $"\"{executable}\" --extract-metadata \"%1\"");
-                }
-
-                Logger.Information("Explorer context menu handlers registered");
-            }
-
-            UpdateShellButtonText();
-        }
-        catch (Exception ex)
-        {
-            Logger.Error(ex, "Unable to update the Explorer context menu handlers");
-        }
-    }
-
-    private static bool IsShellHandlerRegistered()
-    {
-        if (!OperatingSystem.IsWindows()) return false;
-        using RegistryKey? key = Registry.CurrentUser.OpenSubKey(ShellRegistryPath);
-        return key is not null;
-    }
-
-    private void UpdateShellButtonText()
-    {
-        BtnRegisterUnregister.Content = IsShellHandlerRegistered()
-            ? "Unregister Explorer Context Menu Handler"
-            : "Register Context Menu Handler";
+        Utils.Utilities.RegistryContext(BtnRegisterUnregister);
     }
 
     private void OnAboutClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         try
         {
-            Process.Start(new ProcessStartInfo("https://github.com/Myrkie/UpuGuiAvalonia") { UseShellExecute = true });
+            Process.Start(new ProcessStartInfo(Constants.AppUrl) { UseShellExecute = true });
         }
         catch (Exception ex)
         {

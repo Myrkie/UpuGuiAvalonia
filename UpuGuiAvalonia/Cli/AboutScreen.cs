@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using UpuGuiAvalonia.Utils;
 
 namespace UpuGuiAvalonia.Cli
 {
@@ -11,9 +12,11 @@ namespace UpuGuiAvalonia.Cli
 
         private static readonly string[] AboutLines =
         [
-            "UpuGUI Avalonia",
+            Constants.AppName,
             "Decompress and Extract unitypackages",
-            $"version {Version}"
+            $"version {Version}",
+            "",
+            Constants.AppUrl
         ];
 
         private static readonly Random Random = new();

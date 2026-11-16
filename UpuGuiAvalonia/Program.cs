@@ -8,14 +8,14 @@ using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
 using UpuGuiAvalonia.Cli;
 using UpuGuiAvalonia.Gui;
+using Constants = UpuGuiAvalonia.Utils.Constants;
 
 namespace UpuGuiAvalonia;
 
 internal static partial class Program
 {
     private static ILogger Logger => Log.ForContext(typeof(Program));
-    private const string ConfigRoot = "UpuGuiAvalonia.conf";
-    private static readonly string LogPath = Path.Combine(AppContext.BaseDirectory, ConfigRoot, "Logs", $"log-{DateTime.Now:M-d-yyyy-HH-mm}.txt");
+    private static readonly string LogPath = Path.Combine(AppContext.BaseDirectory, Constants.ConfigRoot, "Logs", $"log-{DateTime.Now:M-d-yyyy-HH-mm}.txt");
 
     [LibraryImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
