@@ -2,7 +2,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <AppVersion>2.2.0</AppVersion>
+        <AppVersion>2.3.0</AppVersion>
         <AppName>UpuGuiAvalonia</AppName>
 
         <AssemblyName>$(AppName)</AssemblyName>
@@ -47,10 +47,6 @@
     </ItemGroup>
 
     <ItemGroup>
-        <TrimmerRootAssembly Include="$(AssemblyName)" />
-    </ItemGroup>
-
-    <ItemGroup>
         <EmbeddedResource Include="Assets\Unity Icons\**\*.png">
             <LogicalName>UpuGuiAvalonia.Icons.%(Filename)%(Extension)</LogicalName>
         </EmbeddedResource>
@@ -66,18 +62,6 @@
             <LogicalName>UpuGuiAvalonia.runtimes.linux-x64.native.libHarfBuzzSharp.so</LogicalName>
         </EmbeddedResource>
 
-    </ItemGroup>
-
-    <ItemGroup>
-      <_DeploymentManifestIconFile Remove="Assets\Icons\70px\icons8-archive-folder-70.ico" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <AvaloniaResource Remove="Assets\Icons\70px\icons8-archive-folder-70.ico" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Folder Include="Assets\Application Icons\" />
     </ItemGroup>
 
     <Target Name="DeleteGarbageAfterPublish" AfterTargets="Publish">

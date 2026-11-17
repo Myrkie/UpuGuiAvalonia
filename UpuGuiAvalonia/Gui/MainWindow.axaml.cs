@@ -31,7 +31,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         DataContext = this;
         SelectAll = true;
 
-        Utilities.UpdateShellButtonText(BtnRegisterUnregister);
+        ContextMenuRegistry.UpdateShellButtonText(BtnRegisterUnregister);
 
         AvaloniaLogSink.MessageLogged += OnMessageLogged;
 
@@ -439,7 +439,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
     private void OnRegisterUnregisterClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        Utilities.RegistryContext(btnRegisterUnregister: BtnRegisterUnregister);
+        ContextMenuRegistry.RegistryContext(btnRegisterUnregister: BtnRegisterUnregister);
     }
 
     private void OnAboutClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)

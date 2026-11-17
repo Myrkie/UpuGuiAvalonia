@@ -52,13 +52,13 @@ internal static class PackageOptions
             
             if (registerOptions)
             {
-                Utilities.RegistryContext(true);
+                ContextMenuRegistry.RegistryContext(true);
                 return 0;
             }
 
             if (unregisterOptions)
             {
-                Utilities.RegistryContext(false);
+                ContextMenuRegistry.RegistryContext(false);
                 return 0;
             }
             
