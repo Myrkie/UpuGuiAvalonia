@@ -1,6 +1,8 @@
 ﻿using System.Reflection;
 using System.Runtime.InteropServices;
 using Avalonia.Controls;
+using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 using Microsoft.Win32;
 using Serilog;
 
@@ -193,6 +195,91 @@ namespace UpuGuiAvalonia.Utils
             finally
             {
                 if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
+            }
+        }
+
+        public static WriteableBitmap CreatePreviewBitmap(byte[] imageBytes)
+        {
+            using var stream = new MemoryStream(imageBytes);
+            using var source = new Bitmap(stream);
+
+            var preview = new WriteableBitmap(source.PixelSize, source.Dpi, PixelFormat.Bgra8888, AlphaFormat.Unpremul);
+
+            using var framebuffer = preview.Lock();
+            source.CopyPixels(framebuffer);
+
+            int width = framebuffer.Size.Width;
+            int height = framebuffer.Size.Height;
+            int stride = framebuffer.RowBytes;
+
+            byte[] pixels = new byte[stride * height];
+            Marshal.Copy(framebuffer.Address, pixels, 0, pixels.Length);
+
+            bool[] visited = new bool[width * height];
+            Queue<int> queue = new();
+
+            const byte whiteThreshold = 230;
+
+            for (int x = 0; x < width; x++)
+            {
+                EnqueueIfBackground(x, 0);
+                EnqueueIfBackground(x, height - 1);
+            }
+
+            for (int y = 0; y < height; y++)
+            {
+                EnqueueIfBackground(0, y);
+                EnqueueIfBackground(width - 1, y);
+            }
+
+            while (queue.Count > 0)
+            {
+                int index = queue.Dequeue();
+
+                int x = index % width;
+                int y = index / width;
+
+                int offset = y * stride + x * 4;
+
+                pixels[offset + 3] = 0;
+
+                EnqueueIfBackground(x - 1, y);
+                EnqueueIfBackground(x + 1, y);
+                EnqueueIfBackground(x, y - 1);
+                EnqueueIfBackground(x, y + 1);
+            }
+
+            Marshal.Copy(pixels, 0, framebuffer.Address, pixels.Length);
+
+            return preview;
+
+            void EnqueueIfBackground(int x, int y)
+            {
+                if (x < 0 || x >= width || y < 0 || y >= height)
+                    return;
+
+                int index = y * width + x;
+
+                if (visited[index])
+                    return;
+
+                int offset = y * stride + x * 4;
+
+                byte blue = pixels[offset];
+                byte green = pixels[offset + 1];
+                byte red = pixels[offset + 2];
+                byte alpha = pixels[offset + 3];
+
+                if (alpha == 0 ||
+                    red < whiteThreshold ||
+                    green < whiteThreshold ||
+                    blue < whiteThreshold)
+                {
+                    return;
+                }
+
+                visited[index] = true;
+                queue.Enqueue(index);
             }
         }
     }

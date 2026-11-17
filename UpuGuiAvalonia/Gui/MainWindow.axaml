@@ -7,26 +7,29 @@
     x:DataType="vm:MainWindow"
     Name="{x:Static utils:Constants.AppName}"
     Title="{x:Static utils:Constants.AppTitle}"
-    Width="666"
-    Height="495"
+    Width="730"
+    Height="600"
     MinWidth="522"
     MinHeight="294"
     DragDrop.AllowDrop="True"
     DragDrop.DragOver="OnDragOver"
     DragDrop.Drop="OnDrop">
 
-    <Grid Margin="14"
-          RowDefinitions="*,38,32,22"
-          RowSpacing="5">
+    <Grid
+        Margin="14"
+        RowDefinitions="*,Auto,22"
+        RowSpacing="5">
 
-        <GroupBox Grid.Row="0"
-                  Header="{Binding PackageHeader}"
-                  Padding="4">
+        <GroupBox
+            Grid.Row="0"
+            Header="{Binding PackageHeader}"
+            Padding="4">
 
-            <Grid ColumnDefinitions="*,*"
-                  RowDefinitions="*,32"
-                  ColumnSpacing="6"
-                  RowSpacing="5">
+            <Grid
+                ColumnDefinitions="*,*"
+                RowDefinitions="*,Auto"
+                ColumnSpacing="6"
+                RowSpacing="5">
 
                 <TreeView
                     x:Name="TreeViewContents"
@@ -40,7 +43,9 @@
                             x:DataType="vm:PackageNode"
                             ItemsSource="{Binding Children}">
 
-                            <StackPanel Orientation="Horizontal" Spacing="4">
+                            <StackPanel
+                                Orientation="Horizontal"
+                                Spacing="4">
 
                                 <CheckBox
                                     IsChecked="{Binding IsChecked, Mode=TwoWay}"
@@ -62,24 +67,50 @@
                     </TreeView.ItemTemplate>
                 </TreeView>
 
-                <TextBox
-                    x:Name="ConsoleTextBox"
+                <Grid
                     Grid.Row="0"
                     Grid.Column="1"
-                    AcceptsReturn="True"
-                    IsReadOnly="True"
-                    Text=""
-                    TextWrapping="Wrap"
-                    TextAlignment="Left"
-                    HorizontalAlignment="Stretch"
-                    VerticalAlignment="Stretch"
-                    ScrollViewer.VerticalScrollBarVisibility="Auto"
-                    ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
+                    RowDefinitions="Auto,*"
+                    RowSpacing="5">
+
+                    <Border
+                        Padding="4"
+                        BorderBrush="Gray"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Center"
+                        IsVisible="{Binding HasPackageIcon}">
+
+                        <Image
+                            Source="{Binding PackageIcon}"
+                            Width="115"
+                            Height="115"
+                            Stretch="Uniform"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center" />
+
+                    </Border>
+
+                    <TextBox
+                        x:Name="ConsoleTextBox"
+                        Grid.Row="1"
+                        AcceptsReturn="True"
+                        IsReadOnly="True"
+                        Text=""
+                        TextWrapping="Wrap"
+                        TextAlignment="Left"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Stretch"
+                        ScrollViewer.VerticalScrollBarVisibility="Auto"
+                        ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
+
+                </Grid>
 
                 <Grid
                     Grid.Row="1"
-                    Grid.ColumnSpan="2"
                     Grid.Column="0"
+                    Grid.ColumnSpan="2"
                     ColumnDefinitions="70,70,*,Auto"
                     ColumnSpacing="4">
 
@@ -112,71 +143,87 @@
                 </Grid>
 
             </Grid>
+
         </GroupBox>
 
-        <Grid
+        <Border
             Grid.Row="1"
-            ColumnDefinitions="Auto,Auto,*,Auto"
-            ColumnSpacing="7">
+            Padding="4"
+            BorderBrush="Gray"
+            BorderThickness="1"
+            CornerRadius="4"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Stretch">
 
-            <Button
-                Grid.Column="0"
-                Content="Select Input File"
-                Click="OnSelectInputFileClick"
-                VerticalContentAlignment="Center" />
+            <Grid
+                RowDefinitions="Auto,Auto"
+                RowSpacing="5">
 
-            <Button
-                Grid.Column="1"
-                Content="Unpack now"
-                Click="OnUnpackClick"
-                IsEnabled="{Binding CanUnpack}"
-                VerticalContentAlignment="Center" />
+                <Grid
+                    Grid.Row="0"
+                    ColumnDefinitions="Auto,Auto,*,Auto"
+                    ColumnSpacing="7">
 
-            <CheckBox
-                Grid.Column="3"
-                Content="ExportMeta"
-                MinWidth="89"
-                IsChecked="{Binding ExportMeta, Mode=TwoWay}"
-                VerticalAlignment="Center"
-                HorizontalAlignment="Right" />
+                    <Button
+                        Grid.Column="0"
+                        Content="Select Input File"
+                        Click="OnSelectInputFileClick"
+                        VerticalContentAlignment="Center" />
 
-        </Grid>
+                    <Button
+                        Grid.Column="1"
+                        Content="Unpack now"
+                        Click="OnUnpackClick"
+                        IsEnabled="{Binding CanUnpack}"
+                        VerticalContentAlignment="Center" />
 
-        <Grid
-            Grid.Row="2"
-            ColumnDefinitions="Auto,*,Auto">
+                    <CheckBox
+                        Grid.Column="3"
+                        Content="ExportMeta"
+                        MinWidth="89"
+                        IsChecked="{Binding ExportMeta, Mode=TwoWay}"
+                        VerticalAlignment="Center"
+                        HorizontalAlignment="Right" />
 
-            <Button
-                x:Name="BtnRegisterUnregister"
-                Grid.Column="0"
-                Content="Register Context Menu Handler"
-                Click="OnRegisterUnregisterClick"
-                VerticalContentAlignment="Center" />
+                </Grid>
 
-            <StackPanel
-                Grid.Column="2"
-                Orientation="Horizontal"
-                HorizontalAlignment="Right"
-                Spacing="0">
+                <Grid
+                    Grid.Row="1"
+                    ColumnDefinitions="Auto,*,Auto">
 
-                <Button
-                    Content="About"
-                    Click="OnAboutClick"
-                    VerticalContentAlignment="Center" />
+                    <Button
+                        Grid.Column="0"
+                        x:Name="BtnRegisterUnregister"
+                        Content="Register Context Menu Handler"
+                        Click="OnRegisterUnregisterClick"
+                        VerticalContentAlignment="Center" />
 
-                <Button
-                    Content="Exit"
-                    Click="OnExitClick"
-                    VerticalContentAlignment="Center"
-                    Margin="0" />
+                    <StackPanel
+                        Grid.Column="2"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Spacing="0">
 
-            </StackPanel>
+                        <Button
+                            Content="About"
+                            Click="OnAboutClick"
+                            VerticalContentAlignment="Center" />
 
-        </Grid>
+                        <Button
+                            Content="Exit"
+                            Click="OnExitClick"
+                            VerticalContentAlignment="Center"
+                            Margin="0" />
 
-        <Grid Grid.Row="3">
+                    </StackPanel>
 
-            <Border />
+                </Grid>
+
+            </Grid>
+
+        </Border>
+
+        <Grid Grid.Row="2">
 
             <ProgressBar
                 x:Name="ProgressBar"
@@ -189,4 +236,5 @@
         </Grid>
 
     </Grid>
+
 </Window>

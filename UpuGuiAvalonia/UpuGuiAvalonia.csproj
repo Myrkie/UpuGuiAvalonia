@@ -2,7 +2,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <AppVersion>2.1.1</AppVersion>
+        <AppVersion>2.1.2</AppVersion>
         <AppName>UpuGuiAvalonia</AppName>
 
         <AssemblyName>$(AppName)</AssemblyName>

@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Serilog;
@@ -33,7 +34,6 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         Utilities.UpdateShellButtonText(BtnRegisterUnregister);
 
         AvaloniaLogSink.MessageLogged += OnMessageLogged;
-
 
         Closed += (_, _) =>
         {
@@ -84,11 +84,17 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         private set => SetField(ref field, value);
     } = "Unitypackage File";
 
-    private byte[]? PackageIcon
+    public Bitmap? PackageIcon
     {
         get;
-        set => SetField(ref field, value);
+        private set
+        {
+            if (!SetField(ref field, value)) return;
+            OnPropertyChanged(nameof(HasPackageIcon));
+        }
     }
+
+    public bool HasPackageIcon => PackageIcon is not null;
 
     public bool SelectAll
     {
@@ -182,6 +188,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     private async Task OpenPackageAsync(string filePathName)
     {
         string fullPath = Path.GetFullPath(filePathName);
+
         if (string.Equals(fullPath, _loadedPackage, StringComparison.OrdinalIgnoreCase))
         {
             return;
@@ -209,19 +216,23 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         try
         {
             Logger.Information("Opening Unity package {PackagePath}", fullPath);
-            UnityPackageExtractionResult extraction =
-                await UnityPackageExtractor.ExtractAsync(fullPath, CancellationToken.None);
+            UnityPackageExtractionResult extraction = await UnityPackageExtractor.ExtractAsync(fullPath, CancellationToken.None);
+            
             _assets = extraction.Assets;
-            PackageIcon = extraction.PackageIcon;
+            if (extraction.PackageIcon is { Length: > 0 } iconBytes)
+            {
+                PackageIcon = Utilities.CreatePreviewBitmap(iconBytes); 
+            }
+
             foreach (PackageNode node in BuildTree(_assets))
             {
                 SubscribeToNode(node);
                 RootNodes.Add(node);
             }
+
             HasPackage = true;
             SelectAll = true;
-            Logger.Information("Package loaded into memory. Assets: {AssetCount}; Icon: {HasIcon}",
-                _assets.Count(x => !x.IsFolder), PackageIcon is { Length: > 0 });
+            Logger.Information("Package loaded into memory. Assets: {AssetCount}; Icon: {HasIcon}", _assets.Count(x => !x.IsFolder), HasPackageIcon);
             Logger.Information("Select the folders and files to export, then choose Unpack now");
         }
         catch (Exception ex)
@@ -334,10 +345,11 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             Directory.CreateDirectory(outputRoot);
             List<PackageNode> nodes = [.. EnumerateNodes(RootNodes)];
             List<PackageNode> selectedDirectories = [.. nodes.Where(x => x is { IsDirectory: true, IsChecked: true })];
-            List<PackageNode> selectedFiles = nodes
-                .Where(x => x is { IsDirectory: false, IsChecked: true, AssetContent: not null }).ToList();
-            int copied = 0;
+            List<PackageNode> selectedFiles = [.. nodes.Where(x => x is { IsDirectory: false, IsChecked: true, AssetContent: not null })];
+            
+            var exportedAssets = new List<string>();
             int metadataCopied = 0;
+
             foreach (PackageNode directory in selectedDirectories)
             {
                 string destination = ResolveOutputPath(outputRoot, directory.AssetPath);
@@ -360,19 +372,12 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
                     metadataCopied++;
                 }
 
-                copied++;
-                Logger.Information("Exported {AssetPath}", file.AssetPath);
+                exportedAssets.Add(file.AssetPath);
             }
 
-            if (PackageIcon is { Length: > 0 } icon)
-            {
-                string iconPath = Path.Combine(outputRoot, ".icon.png");
-                await File.WriteAllBytesAsync(iconPath, icon);
-                Logger.Information("Exported package icon to {IconPath}", iconPath);
-            }
+            Logger.Information("Exported assets:{NewLine}{AssetPaths:l}", Environment.NewLine, string.Join(Environment.NewLine, exportedAssets));
 
-            Logger.Information("Export completed. Files: {FileCount}; metadata: {MetadataCount}; output: {OutputDirectory}", copied,
-                metadataCopied, outputRoot);
+            Logger.Information("Export completed. Assets: {AssetCount}; metadata: {MetadataCount}; output: {OutputDirectory}", exportedAssets.Count, metadataCopied, outputRoot);
         }
         catch (Exception ex)
         {
