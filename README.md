@@ -45,6 +45,3 @@ Release Linux
 ```code
 ./PublishLinuxAot.ps1
 ```
-
-Search Engine Keywords:
-unity3d, unitypackage, unpack, extract, deflate, assets, UPUGui

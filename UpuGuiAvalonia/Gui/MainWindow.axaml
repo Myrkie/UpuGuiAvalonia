@@ -6,7 +6,7 @@
     xmlns:utils="clr-namespace:UpuGuiAvalonia.Utils"
     x:DataType="vm:MainWindow"
     Name="{x:Static utils:Constants.AppName}"
-    Title="{x:Static utils:Constants.AppTitle}"
+    Title="{x:Static utils:Constants.AppTitleVersion}"
     Width="730"
     Height="600"
     MinWidth="522"

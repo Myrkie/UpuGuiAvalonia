@@ -5,11 +5,6 @@ namespace UpuGuiAvalonia.Cli
 {
     internal static class AboutScreen
     {
-        private static readonly string Version =
-            Assembly.GetExecutingAssembly().GetName().Version is { } version
-                ? $"{version.Major}.{version.Minor}.{version.Build}"
-                : "Unknown";
-
         private static readonly string[] AboutLines =
         [
             Constants.AppName,
@@ -18,7 +13,7 @@ namespace UpuGuiAvalonia.Cli
             "Created by Myrkur", 
             "distributed under the Apache License v2",
             "",
-            $"Version {Version}",
+            $"Version {Constants.Version}",
             "",
             Constants.AppUrl
         ];
