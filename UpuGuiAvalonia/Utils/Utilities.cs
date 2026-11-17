@@ -12,9 +12,8 @@ namespace UpuGuiAvalonia.Utils
     {
         private static readonly ILogger Logger = Log.ForContext(typeof(Utilities));
         private static string NativeLibraryDirectory => Path.Combine(AppContext.BaseDirectory, Constants.ConfigRoot, "Assemblies");
-        private const string ShellRegistryPath = @"Software\Classes\*\shell\UpuGuiAvalonia";
-        private const string ShellRegistryMetadataPath = @"Software\Classes\*\shell\UpuGuiAvaloniaMetadata";
-
+        private const string ShellRegistryPath = @"Software\Classes\SystemFileAssociations\.unitypackage\shell\UpuGuiAvalonia";
+        private const string ShellRegistryMetadataPath = @"Software\Classes\SystemFileAssociations\.unitypackage\shell\UpuGuiAvaloniaMetadata";
         public static void RegistryContext(bool? register = null, Button? btnRegisterUnregister = null)
         {
             if (!OperatingSystem.IsWindows())
@@ -29,8 +28,7 @@ namespace UpuGuiAvalonia.Utils
                 if (shouldRegister)
                 {
                     string? executable = Environment.ProcessPath;
-                    if (string.IsNullOrWhiteSpace(executable) ||
-                        !executable.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                    if (string.IsNullOrWhiteSpace(executable) || !executable.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
                     {
                         Logger.Warning("Context menu registration requires the packaged .exe application");
                         return;
@@ -75,8 +73,8 @@ namespace UpuGuiAvalonia.Utils
         private static bool IsShellHandlerRegistered()
         {
             if (!OperatingSystem.IsWindows()) return false;
-            using RegistryKey? key = Registry.CurrentUser.OpenSubKey(ShellRegistryPath);
-            return key is not null;
+            using RegistryKey? key = Registry.CurrentUser.OpenSubKey($@"{ShellRegistryPath}\command");
+            return key?.GetValue(string.Empty) is not null;
         }
 
         public static void UpdateShellButtonText(Button btnRegisterUnregister)
