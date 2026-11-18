@@ -1,4 +1,4 @@
-﻿FROM mcr.microsoft.com/dotnet/nightly/sdk:10.0-aot
+﻿FROM mcr.microsoft.com/dotnet/nightly/sdk:10.0-aot AS publish
 
 RUN apt-get update && apt-get install -y \
     clang \
@@ -18,3 +18,7 @@ RUN dotnet publish UpuGuiAvalonia.csproj \
     -p:PublishAot=true \
     --self-contained true \
     -o /out
+
+FROM scratch AS export
+
+COPY --from=publish /out/ /
