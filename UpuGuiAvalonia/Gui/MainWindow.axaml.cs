@@ -44,6 +44,8 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         };
     }
 
+    // ReSharper disable once UnusedMember.Local
+    // ReSharper disable once UnusedParameter.Local
     private void OnDragOver(object? sender, DragEventArgs e)
     {
         if (IsBusy || !e.DataTransfer.Contains(DataFormat.File))
@@ -62,6 +64,8 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         e.DragEffects = hasValidFile ? DragDropEffects.Copy : DragDropEffects.None;
     }
 
+    // ReSharper disable once UnusedMember.Local
+    // ReSharper disable once UnusedParameter.Local
     private async void OnDrop(object? sender, DragEventArgs e)
     {
         try

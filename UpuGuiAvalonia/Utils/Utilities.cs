@@ -1,9 +1,7 @@
 ﻿using System.Reflection;
 using System.Runtime.InteropServices;
-using Avalonia.Controls;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
-using Microsoft.Win32;
 using Serilog;
 
 namespace UpuGuiAvalonia.Utils
@@ -12,6 +10,7 @@ namespace UpuGuiAvalonia.Utils
     {
         private static readonly ILogger Logger = Log.ForContext(typeof(Utilities));
         private static string NativeLibraryDirectory => Path.Combine(AppContext.BaseDirectory, Constants.ConfigRoot, "Assemblies");
+        private static string ConfigAssetDirectory => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local", "share", "icons");
         public static void ConfigureNativeLibraries()
         {
             if (!OperatingSystem.IsLinux()) return;
@@ -23,10 +22,8 @@ namespace UpuGuiAvalonia.Utils
             Directory.CreateDirectory(NativeLibraryDirectory);
             Logger.Information("Native library directory: {Directory}", NativeLibraryDirectory);
 
-            ExtractNativeLibrary("UpuGuiAvalonia.runtimes.linux-x64.native.libHarfBuzzSharp.so", "libHarfBuzzSharp.so");
-            ExtractNativeLibrary("UpuGuiAvalonia.runtimes.linux-x64.native.libSkiaSharp.so", "libSkiaSharp.so");
-            string harfBuzzPath = Path.Combine(NativeLibraryDirectory, "libHarfBuzzSharp.so");
-            string skiaPath = Path.Combine(NativeLibraryDirectory, "libSkiaSharp.so");
+            var harfBuzzPath = ExtractNativeLibrary("UpuGuiAvalonia.runtimes.linux-x64.native.libHarfBuzzSharp.so", "libHarfBuzzSharp.so");
+            var skiaPath = ExtractNativeLibrary("UpuGuiAvalonia.runtimes.linux-x64.native.libSkiaSharp.so", "libSkiaSharp.so");
 
             if (!File.Exists(harfBuzzPath))
             {
@@ -69,6 +66,11 @@ namespace UpuGuiAvalonia.Utils
             Logger.Information("HarfBuzzSharp DllImportResolver registered for {Assembly}", harfBuzzAssembly.GetName().Name);
         }
 
+        private static string ExtractNativeLibrary(string resourceName, string fileName)
+        {
+            return ExtractEmbeddedResource(resourceName, NativeLibraryDirectory, fileName);
+        }
+
         private static void RegisterSkiaResolver()
         {
             Assembly skiaAssembly = typeof(SkiaSharp.SKBitmap).Assembly;
@@ -92,36 +94,40 @@ namespace UpuGuiAvalonia.Utils
             Logger.Information("SkiaSharp DllImportResolver registered for {Assembly}", skiaAssembly.GetName().Name);
         }
 
-        private static void ExtractNativeLibrary(string resourceName, string fileName)
+        public static string ExtractApplicationIcon(string resourceName, string fileName)
         {
-            string outputPath = Path.Combine(NativeLibraryDirectory, fileName);
+            return ExtractEmbeddedResource(resourceName, ConfigAssetDirectory, fileName);
+        }
+
+        private static string ExtractEmbeddedResource(string resourceName, string outputDirectory, string fileName)
+        {
+            Directory.CreateDirectory(outputDirectory);
+
+            string outputPath = Path.Combine(outputDirectory, fileName);
 
             if (File.Exists(outputPath))
             {
-                Logger.Information("Native library already extracted: {Path}", outputPath);
-                return;
+                Logger.Information("Embedded resource already extracted: {Path}", outputPath);
+                return outputPath;
             }
 
-            Logger.Information("Extracting embedded native library: {Resource}", resourceName);
-            using Stream resource = typeof(Utilities).Assembly.GetManifestResourceStream(resourceName) ?? throw new FileNotFoundException($"Embedded native library not found: {resourceName}");
-            string temporaryPath = outputPath + ".tmp";
-            try
-            {
-                using (FileStream output = File.Create(temporaryPath))
-                {
-                    resource.CopyTo(output);
-                }
+            Logger.Information("Extracting embedded resource: {Resource}", resourceName);
 
-                File.Move(temporaryPath, outputPath, overwrite: true);
-#pragma warning disable CA1416
+            using Stream resource = typeof(Utilities).Assembly.GetManifestResourceStream(resourceName) ?? throw new FileNotFoundException($"Embedded resource not found: {resourceName}");
+
+            using (FileStream output = File.Create(outputPath))
+            {
+                resource.CopyTo(output);
+            }
+
+            if (OperatingSystem.IsLinux())
+            {
                 File.SetUnixFileMode(outputPath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
-#pragma warning restore CA1416
-                Logger.Information("Successfully extracted native library: {Path}", outputPath);
             }
-            finally
-            {
-                if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
-            }
+
+            Logger.Information("Successfully extracted embedded resource: {Path}", outputPath);
+
+            return outputPath;
         }
 
         public static WriteableBitmap CreatePreviewBitmap(byte[] imageBytes)

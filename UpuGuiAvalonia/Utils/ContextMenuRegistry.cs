@@ -11,6 +11,7 @@ namespace UpuGuiAvalonia.Utils
         private const string ShellRegistryMetadataPath = @"Software\Classes\SystemFileAssociations\.unitypackage\shell\UpuGuiAvaloniaMetadata";
         private const string NemoExtractFile = "upugui-extract.nemo_action";
         private const string NemoMetadataFile = "upugui-extract-metadata.nemo_action";
+        private const string NemoIconFile = "d_Folder Icon.png";
 
         private enum ContextPlatform
         {
@@ -128,13 +129,14 @@ namespace UpuGuiAvalonia.Utils
                 return;
             }
 
-            string dataHome = GetXdgDataHome();
-            string actionDirectory = Path.Combine(dataHome, "nemo", "actions");
+            string actionDirectory = Path.Combine(GetXdgDataHome(), "nemo", "actions");
             string extractFile = Path.Combine(actionDirectory, NemoExtractFile);
             string metadataFile = Path.Combine(actionDirectory, NemoMetadataFile);
             bool shouldRegister = register ?? !IsLinuxShellHandlerRegistered();
             if (shouldRegister)
             {
+                var iconPath = Utilities.ExtractApplicationIcon("UpuGuiAvalonia.Icons.d_Folder Icon.png", "d_Folder Icon.png");
+                var iconFileWithoutExtension = Path.GetFileNameWithoutExtension(iconPath);
                 Directory.CreateDirectory(actionDirectory);
                 string quotedExecutable = QuoteDesktopArgument(executable);
                 File.WriteAllText(extractFile, $"""
@@ -142,7 +144,7 @@ namespace UpuGuiAvalonia.Utils
                                                 Name=Extract here
                                                 Comment=Extract Unity package
                                                 Exec={quotedExecutable} --extract %F
-                                                Icon-Name=archive-extract
+                                                Icon-Name={iconFileWithoutExtension}
                                                 Selection=s
                                                 Extensions=unitypackage;
                                                 Quote=double
@@ -153,7 +155,7 @@ namespace UpuGuiAvalonia.Utils
                                                  Name=Extract here (with metadata)
                                                  Comment=Extract Unity package with metadata
                                                  Exec={quotedExecutable} --extract %F --extract-metadata
-                                                 Icon-Name=archive-extract
+                                                 Icon-Name={iconFileWithoutExtension}
                                                  Selection=s
                                                  Extensions=unitypackage;
                                                  Quote=double
@@ -163,9 +165,17 @@ namespace UpuGuiAvalonia.Utils
             }
             else
             {
-                if (File.Exists(extractFile)) File.Delete(extractFile);
-                if (File.Exists(metadataFile)) File.Delete(metadataFile);
-                Logger.Information("Nemo context menu handlers unregistered");
+                if (File.Exists(extractFile))
+                    File.Delete(extractFile);
+
+                if (File.Exists(metadataFile))
+                    File.Delete(metadataFile);
+                string iconPath = Path.Combine(GetXdgDataHome(), "icons", NemoIconFile);
+
+                if (File.Exists(iconPath))
+                    File.Delete(iconPath);
+
+                Logger.Information("Nemo context menu handlers and icon unregistered");
             }
         }
 

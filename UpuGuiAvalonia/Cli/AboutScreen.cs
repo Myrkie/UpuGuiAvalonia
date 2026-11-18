@@ -1,5 +1,4 @@
-﻿using System.Reflection;
-using UpuGuiAvalonia.Utils;
+﻿using UpuGuiAvalonia.Utils;
 
 namespace UpuGuiAvalonia.Cli
 {
