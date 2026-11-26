@@ -129,7 +129,7 @@ namespace UpuGuiAvalonia.Utils
                 return;
             }
 
-            string actionDirectory = Path.Combine(GetXdgDataHome(), "nemo", "actions");
+            string actionDirectory = Path.Combine(GetUnixHome(), "nemo", "actions");
             string extractFile = Path.Combine(actionDirectory, NemoExtractFile);
             string metadataFile = Path.Combine(actionDirectory, NemoMetadataFile);
             bool shouldRegister = register ?? !IsLinuxShellHandlerRegistered();
@@ -170,7 +170,7 @@ namespace UpuGuiAvalonia.Utils
 
                 if (File.Exists(metadataFile))
                     File.Delete(metadataFile);
-                string iconPath = Path.Combine(GetXdgDataHome(), "icons", NemoIconFile);
+                string iconPath = Path.Combine(GetUnixHome(), "icons", NemoIconFile);
 
                 if (File.Exists(iconPath))
                     File.Delete(iconPath);
@@ -181,18 +181,12 @@ namespace UpuGuiAvalonia.Utils
 
         private static bool IsLinuxShellHandlerRegistered()
         {
-            string actionDirectory = Path.Combine(GetXdgDataHome(), "nemo", "actions");
+            string actionDirectory = Path.Combine(GetUnixHome(), "nemo", "actions");
             return File.Exists(Path.Combine(actionDirectory, NemoExtractFile)) && File.Exists(Path.Combine(actionDirectory, NemoMetadataFile));
         }
 
-        private static string GetXdgDataHome()
+        private static string GetUnixHome()
         {
-            string? dataHome = Environment.GetEnvironmentVariable("XDG_DATA_HOME");
-            if (!string.IsNullOrWhiteSpace(dataHome) && Path.IsPathFullyQualified(dataHome))
-            {
-                return dataHome;
-            }
-
             return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local", "share");
         }
 

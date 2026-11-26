@@ -27,7 +27,7 @@ Arguments:
 Supports
 ---
 - Windows
-- Linux
+- Linux (Limited support for context menu, only Nemo is supported)
 
 Download
 ---
